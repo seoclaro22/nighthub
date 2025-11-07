@@ -1,0 +1,87 @@
+import Link from 'next/link'
+import { fetchClub, fetchClubEvents } from '@/lib/db'
+import { notFound } from 'next/navigation'
+import { FavoriteButton } from '@/components/FavoriteButton'
+import { ReviewsSection } from '@/components/ReviewsSection'
+import { T } from '@/components/T'
+
+export default async function ClubProfile({ params }: { params: { id: string } }) {
+  const club: any = await fetchClub(params.id)
+  if (!club) return notFound()
+  const events = await fetchClubEvents(params.id, 10)
+  let images: string[] = []; if (Array.isArray((club as any).images)) { images = (club as any).images as string[] } else if (typeof (club as any).images === "string") { try { const parsed = JSON.parse((club as any).images as string); if (Array.isArray(parsed)) images = parsed; else if (typeof parsed === "string") images = [parsed]; } catch { if ((club as any).images) images = [String((club as any).images)] } }
+  const logo: string | null = (club as any).logo_url || null
+  const links = (club.links || {}) as Record<string, string>
+  const mapUrl = club.address ? `https://maps.google.com?q=${encodeURIComponent(club.address)}` : (club.name ? `https://maps.google.com?q=${encodeURIComponent(club.name)}` : '#')
+  return (
+    <div className="space-y-4">
+      <div className="w-full rounded-xl bg-white/5 overflow-hidden aspect-[3/1]">
+        {(images[0] || (club as any).logo_url) ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={(images[0] || (club as any).logo_url) as string} alt={club.name} className="w-full h-full object-cover" />
+        ) : null}
+      </div>
+      <div className="flex items-center justify-between">
+        <div className="flex items-start gap-3">
+          {logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logo} alt="logo" className="w-12 h-12 rounded-full border border-white/10 object-cover" />
+          ) : null}
+          <div>
+            <h1 className="text-2xl font-semibold">{club.name}</h1>
+          <p className="muted">{club.description || '-'}</p>
+          {Array.isArray(club.genres) && club.genres.length > 0 && (
+            <div className="flex gap-2 flex-wrap mt-2">
+              {club.genres.map((g: string) => (
+                <span key={g} className="text-xs px-2 py-1 rounded bg-white/10 border border-white/10">{g}</span>
+              ))}
+            </div>
+          )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <FavoriteButton eventId={club.id} targetType="club" useLocalCache />
+        </div>
+      </div>
+      <div className="grid gap-2">
+        <div className="card p-4">
+          <div className="text-sm text-white/80 break-words">{club.address || 'Mallorca'}</div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <a className="btn btn-secondary text-sm px-3 py-1" href={mapUrl} target="_blank" rel="noreferrer"><T k="action.directions" /></a>
+            {/* telefono privado: no se muestra en publico */}
+            {links?.web && <a className="btn btn-secondary text-sm px-3 py-1" href={links.web} target="_blank" rel="noreferrer">Web</a>}
+            {links?.instagram && <a className="btn btn-secondary text-sm px-3 py-1" href={links.instagram} target="_blank" rel="noreferrer">Instagram</a>}
+            {links?.facebook && <a className="btn btn-secondary text-sm px-3 py-1" href={links.facebook} target="_blank" rel="noreferrer">Facebook</a>}
+          </div>
+        </div>
+        {images.length > 1 && (
+          <div className="card p-3">
+            <div className="flex gap-2 overflow-auto">
+              {images.slice(1).map((src, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={i} src={src} alt={`img-${i}`} className="w-28 h-20 object-cover rounded-lg border border-white/10" />
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="card p-3">
+          <div className="font-medium mb-2">Proximos Eventos</div>
+          <div className="space-y-2">
+            {events.length === 0 && <div className="text-sm text-white/60">No hay eventos proximos.</div>}
+            {events.map((e: any) => (
+              <div key={e.id} className="flex items-center justify-between">
+                <div className="text-sm">{e.name} · {new Date(e.start_at).toLocaleString('es-ES', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+                <Link className="btn btn-secondary px-3 py-1 text-sm" href={`/event/${e.id}`}>Ver</Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <ReviewsSection targetType="club" targetId={club.id} />
+    </div>
+  )
+}
+
+
+export const revalidate = 0
+export const dynamic = 'force-dynamic'
