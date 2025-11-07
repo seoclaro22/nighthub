@@ -11,6 +11,10 @@ export const metadata = {
   description: 'Descubre. Reserva. Baila.'
 }
 
+// Evita el prerender estatico en build (usa runtime siempre)
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="es" className="dark">
